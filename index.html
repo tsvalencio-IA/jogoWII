@@ -21,218 +21,189 @@
 
         :root {
             --wii-bg: #ececec;
-            --wii-blue: #00b0f0;
-            --wii-dark: #333333;
-            --channel-hover: #ffffff;
+            --wii-blue: #58b4e8;
+            --wii-gray-text: #666;
         }
 
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: var(--wii-bg);
-            font-family: 'Roboto', sans-serif;
-            touch-action: none; /* Previne scroll no mobile */
+        body { 
+            background: radial-gradient(circle at center, #ffffff 0%, #e0e0e0 100%);
+            margin: 0; overflow: hidden; 
+            font-family: 'Roboto', sans-serif; 
+            user-select: none; touch-action: none;
+            height: 100vh; width: 100vw;
         }
 
-        /* UI Fade Transitions 20/10 */
-        .screen-transition {
-            transition: opacity 0.5s ease-in-out, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        .screen-hidden {
-            opacity: 0;
-            pointer-events: none;
-            transform: scale(0.95);
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-        }
-        .screen-active {
-            opacity: 1;
-            pointer-events: auto;
-            transform: scale(1);
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+        .crt-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.02) 50%);
+            background-size: 100% 3px;
         }
 
-        /* Canais do Wii */
+        /* WEBCAM */
+        #webcam { 
+            position: absolute; bottom: 85px; right: 20px; width: 120px; 
+            border-radius: 12px; border: 3px solid white; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transform: scaleX(-1); z-index: 50; opacity: 0; transition: opacity 0.5s;
+        }
+
+        #game-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
+
+        /* WII MENU CONTAINER */
+        .wii-container {
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+            height: 100%; width: 100%; position: relative; z-index: 20; padding: 20px 0;
+        }
+
+        /* HEADER */
+        .wii-header {
+            width: 90%; display: flex; justify-content: center; align-items: center;
+            border-bottom: 1px solid #ccc; padding-bottom: 10px; margin-bottom: 10px;
+        }
+        .wii-title { font-weight: bold; color: #888; font-size: 1.2rem; letter-spacing: 1px; }
+
+        /* GRID DE CANAIS (CORRIGIDO PARA NÃO ESMAGAR) */
         .channel-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            padding: 40px;
-            max-width: 1200px;
-            margin: 0 auto;
+            display: grid; 
+            /* Define colunas fixas ou flexíveis que mantêm proporção */
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 15px;
+            width: 90%; max-width: 800px;
+            padding: 10px;
+            overflow-y: auto; /* Permite scroll se necessário em telas pequenas */
         }
 
-        .wii-channel {
-            background: linear-gradient(135deg, #ffffff, #e0e0e0);
-            border: 4px solid #ccc;
+        /* Media query para telas maiores (Desktop/Tablet) */
+        @media (min-width: 768px) {
+            .channel-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+
+        .channel {
+            background: white;
+            aspect-ratio: 16/10; /* Garante que o cartão seja retangular perfeito */
             border-radius: 15px;
-            height: 180px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            border: 1px solid #ddd;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.05), inset 0 0 30px rgba(240,240,240,0.5);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            cursor: pointer; position: relative; overflow: hidden;
             transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
         }
 
-        .wii-channel:hover {
-            transform: translateY(-5px) scale(1.05);
+        .channel:hover {
+            transform: scale(1.05);
             border-color: var(--wii-blue);
-            box-shadow: 0 15px 30px rgba(0, 176, 240, 0.4);
-            background: #fff;
+            box-shadow: 0 0 0 4px rgba(88, 180, 232, 0.3);
         }
 
-        .wii-channel::after {
-            content: '';
-            position: absolute;
-            top: -50%; left: -50%; width: 200%; height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-        }
-        .wii-channel:hover::after { opacity: 1; }
-
-        .channel-title {
-            font-family: 'Russo One', sans-serif;
-            font-size: 24px;
-            color: var(--wii-dark);
-            margin-top: 10px;
-            text-align: center;
-            text-transform: uppercase;
+        .channel-icon { font-size: 3.5rem; margin-bottom: 8px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.1)); }
+        .channel-title { 
+            font-family: 'Chakra Petch', sans-serif; font-size: 0.8rem; color: #777; 
+            font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
         }
 
-        .channel-icon { font-size: 48px; }
-
-        /* Game Overlay e Canvas */
-        #game-canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
+        /* FOOTER BAR */
+        .wii-footer {
+            width: 90%; max-width: 600px; height: 60px;
+            background: #fff; border: 1px solid #ccc; border-radius: 30px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 30px; margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
         }
 
-        #video-feed {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            width: 240px;
-            height: 180px;
-            border: 3px solid #fff;
-            border-radius: 10px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            transform: scaleX(-1); /* Espelhado */
-            z-index: 50;
-            object-fit: cover;
-            opacity: 0.8;
-            transition: opacity 0.3s;
+        .wii-oval-btn {
+            background: #f0f0f0; border: 1px solid #ccc; padding: 8px 25px;
+            border-radius: 20px; font-weight: bold; color: #666; cursor: pointer;
+            font-size: 0.9rem; transition: background 0.2s;
         }
-        #video-feed:hover { opacity: 1; }
+        .wii-oval-btn:hover { background: #e0e0e0; }
 
-        .hud-overlay {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            color: white;
-            font-family: 'Russo One', sans-serif;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-        }
+        .clock { font-size: 1.5rem; color: #888; font-weight: 300; }
 
-        /* Botão Home do Wii */
-        .btn-home {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: var(--wii-blue);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            font-size: 24px;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            z-index: 100;
-            transition: transform 0.2s, background 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .btn-home:hover {
-            transform: scale(1.1);
-            background: #0090c0;
-        }
+        /* LOADING & UTILS */
+        #loading { background: white; z-index: 1000; position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+        .hidden { display: none !important; }
+
+        /* HUD JOGO */
+        #game-ui { pointer-events: none; }
+        #game-ui > * { pointer-events: auto; }
         
-        #loading-overlay {
-            background: rgba(0,0,0,0.9);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 999;
+        #game-msg {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-family: 'Russo One'; font-size: 60px; color: #fff;
+            text-shadow: 0 4px 0 #000, 0 0 20px rgba(0,0,0,0.5);
+            width: 100%; text-align: center; pointer-events: none;
         }
 
-        .spinner {
-            border: 6px solid #f3f3f3;
-            border-top: 6px solid var(--wii-blue);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
+        /* Botão Home/Sair Estilo Wii */
+        .home-btn {
+            position: fixed; top: 20px; right: 20px;
+            width: 60px; height: 60px; background: white;
+            border-radius: 50%; border: 2px solid #ccc;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; cursor: pointer; z-index: 100;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: transform 0.1s;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .home-btn:active { transform: scale(0.9); background: #eee; }
     </style>
 </head>
 <body>
 
-    <!-- OVERLAY DE LOADING INICIAL -->
-    <div id="loading-overlay" class="screen-active">
-        <div class="spinner mb-4"></div>
-        <h1 class="text-3xl font-bold font-['Russo_One']">INICIANDO THIAGUINHO OS...</h1>
-        <p id="loading-text" class="mt-2 text-gray-400">Carregando IA de Visão Computacional (MoveNet)</p>
+    <video id="webcam" autoplay playsinline muted></video>
+    <div class="crt-overlay"></div>
+    <canvas id="game-canvas"></canvas>
+
+    <div id="loading">
+        <div class="w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+        <!-- FIX AQUI: Adicionado ID loading-text para evitar erro no core.js -->
+        <p id="loading-text" class="mt-4 text-gray-400 font-bold tracking-widest text-sm">A CARREGAR...</p>
     </div>
 
-    <!-- MENU PRINCIPAL (CANAIS) -->
-    <div id="screen-menu" class="screen-hidden flex flex-col items-center">
-        <div class="w-full bg-white shadow-md p-4 flex justify-between items-center">
-            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                <span class="text-blue-500">ThIAguinho</span> Wii
-            </h1>
-            <div id="net-status" class="font-bold text-gray-500">OFFLINE 🔴</div>
+    <!-- MENU PRINCIPAL -->
+    <div id="menu-screen" class="wii-container hidden">
+        <div class="wii-header">
+            <span class="wii-title">thIAguinho Wii</span>
         </div>
 
-        <div class="channel-grid w-full mt-10" id="channels-container">
-            <!-- Gerado via JS -->
+        <div class="channel-grid" id="channel-grid">
+            <!-- Canais Inseridos via JS -->
+        </div>
+
+        <div class="wii-footer">
+            <div class="wii-oval-btn" onclick="window.System.msg('PERFIL: ' + window.System.playerId)">Wii</div>
+            <div class="clock" id="clock">12:00</div>
+            <div class="wii-oval-btn" onclick="location.reload()">Start</div>
+        </div>
+        
+        <div style="position: absolute; bottom: 10px; right: 20px; font-size: 0.7rem; color: #bbb;">
+            NET: <span id="net-status" style="color: #999;">OFFLINE</span>
         </div>
     </div>
 
-    <!-- TELA DO JOGO (ENGINE CANVAS) -->
-    <div id="screen-game" class="screen-hidden">
-        <canvas id="game-canvas"></canvas>
-        <video id="video-feed" autoplay playsinline></video>
+    <!-- HUD DO JOGO -->
+    <div id="game-ui" class="hidden">
+        <div style="position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3);">
+            <span style="color: #ddd; font-size: 0.8rem; font-weight: bold; margin-right: 5px;">SCORE</span>
+            <span id="hud-score" style="color: #fff; font-family: 'Russo One'; font-size: 1.4rem;">0</span>
+        </div>
         
-        <div class="hud-overlay text-4xl" id="hud-score">0</div>
-        
-        <button class="btn-home" onclick="window.System.home()">🏠</button>
+        <div id="game-msg"></div>
+
+        <!-- Botão HOME para Sair do Jogo -->
+        <button class="home-btn" onclick="window.System.home()" title="Voltar ao Menu">🏠</button>
     </div>
 
-    <!-- TELA DE GAME OVER -->
-    <div id="screen-over" class="screen-hidden bg-black/90 flex flex-col items-center justify-center text-white">
-        <h1 class="text-6xl font-['Russo_One'] text-red-500 mb-4">FIM DE JOGO</h1>
-        <p class="text-3xl mb-8">PONTUAÇÃO: <span id="final-score" class="text-yellow-400">0</span></p>
-        <button onclick="window.System.home()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-2xl transition-all shadow-lg shadow-blue-500/50">
-            VOLTAR AO MENU
-        </button>
+    <!-- TELA GAME OVER -->
+    <div id="screen-over" class="wii-container hidden" style="background: rgba(0,0,0,0.92); justify-content: center; color: white;">
+        <h1 style="font-family: 'Russo One'; font-size: 4rem; color: #ff5252; margin-bottom: 10px;">FIM</h1>
+        <div style="background: #333; padding: 20px 40px; border-radius: 15px; border: 1px solid #555; text-align: center;">
+            <p style="color: #aaa; font-size: 0.9rem;">RESULTADO FINAL</p>
+            <span id="final-score" style="font-family: 'Russo One'; font-size: 3rem; color: #ffd740;">0</span>
+        </div>
+        <button class="wii-oval-btn" onclick="window.System.home()" style="margin-top: 30px; font-size: 1.2rem; padding: 12px 40px;">MENU</button>
     </div>
 
     <script>
-        // CONFIGURAÇÃO FIREBASE NATIVA
         const firebaseConfig = {
             apiKey: "AIzaSyB0ThqhfK6xc8P1D4WCkavhdXbb7zIaQJk",
             authDomain: "thiaguinhowii.firebaseapp.com",
@@ -253,25 +224,8 @@
                 }
             }
         } catch (e) { console.error("Erro Firebase", e); }
-
-        // MUDANÇA DE TELAS UI
-        window.switchScreen = function(screenId) {
-            ['screen-menu', 'screen-game', 'screen-over', 'loading-overlay'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) {
-                    if(id === screenId) {
-                        el.classList.remove('screen-hidden');
-                        el.classList.add('screen-active');
-                    } else {
-                        el.classList.remove('screen-active');
-                        el.classList.add('screen-hidden');
-                    }
-                }
-            });
-        };
     </script>
 
-    <!-- INJEÇÃO DE DEPENDÊNCIAS DO CORE E DOS JOGOS -->
     <script src="js/core.js"></script>
     <script src="js/game_kart.js"></script>
     <script src="js/game_run.js"></script>
@@ -279,70 +233,11 @@
     <script src="js/game_tennis.js"></script>
 
     <script>
-        // INICIALIZAÇÃO DO SISTEMA
-        window.onload = async () => {
-            window.System.canvas = document.getElementById('game-canvas');
-            window.System.video = document.getElementById('video-feed');
-            
-            // CORREÇÃO 1: Definir o resize para ajustar o canvas ao ecrã
-            window.System.resize = () => {
-                if(window.System.canvas) {
-                    window.System.canvas.width = window.innerWidth;
-                    window.System.canvas.height = window.innerHeight;
-                }
-            };
-            window.System.resize();
-            window.addEventListener('resize', window.System.resize);
-
-            // CORREÇÃO 2: Definir a função home() chamada pelos botões
-            window.System.home = () => {
-                window.System.stopGame();
-                window.switchScreen('screen-menu');
-            };
-            window.System.menu = window.System.home; // Mantém a referência do menu
-
-            // 1. Iniciar Câmera
-            document.getElementById('loading-text').innerText = "Iniciando Câmera...";
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
-                window.System.video.srcObject = stream;
-                await new Promise((resolve) => { window.System.video.onloadedmetadata = () => resolve(); });
-            } catch(e) {
-                alert("Erro ao acessar a câmera. O Console precisa de permissão para funcionar!");
-                return;
-            }
-
-            // 2. Carregar IA (MoveNet)
-            document.getElementById('loading-text').innerText = "Carregando TensorFlow.js...";
-            await tf.ready();
-            const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
-            window.System.detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
-
-            // 3. Renderizar Canais e Iniciar
-            const container = document.getElementById('channels-container');
-            const icons = { 'kart': '🏎️', 'box': '🥊', 'tennis': '🏓', 'run': '🏃‍♂️' };
-            
-            window.Games.forEach(g => {
-                const div = document.createElement('div');
-                div.className = 'wii-channel';
-                div.innerHTML = `
-                    <div class="channel-icon">${icons[g.id] || '🎮'}</div>
-                    <div class="channel-title">${g.title}</div>
-                `;
-                div.onclick = () => {
-                    window.Sfx.init(); // Ativa AudioContext no primeiro click
-                    window.Sfx.click();
-                    window.System.activeGame = g;
-                    window.switchScreen('screen-game');
-                    if(g.logic.init) g.logic.init();
-                    window.System.loop();
-                };
-                div.onmouseenter = () => window.Sfx.hover();
-                container.appendChild(div);
-            });
-
-            window.switchScreen('screen-menu');
-        };
+        setInterval(() => {
+            const now = new Date();
+            const el = document.getElementById('clock');
+            if(el) el.innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }, 1000);
     </script>
 </body>
 </html>
