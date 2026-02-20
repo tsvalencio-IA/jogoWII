@@ -1,7 +1,7 @@
 // =============================================================================
 // KART LEGENDS: TITANIUM MASTER FINAL V5 (CAMERA OVERHAUL)
 // ARQUITETO: SENIOR GAME ENGINE ARCHITECT
-// STATUS: CÂMERA ARCADE 3RD PERSON (MAIS ALTA/DISTANTE) + INJEÇÕES 20/10 (DRIFT & VÁCUO)
+// STATUS: CÂMERA ARCADE 3RD PERSON + INJEÇÃO 20/10 (DRIFT E VÁCUO)
 // =============================================================================
 
 (function() {
@@ -46,8 +46,8 @@
         DRAW_DISTANCE: 250, 
         RUMBLE_LENGTH: 3,
         TOTAL_LAPS: 3,
-        CAMERA_HEIGHT: 250, // AUMENTADO (De 120 para 250) - Câmera mais alta
-        CAMERA_DEPTH: 1.5,  // AUMENTADO (De 0.8 para 1.5) - Maior distância focal
+        CAMERA_HEIGHT: 250, 
+        CAMERA_DEPTH: 1.5,  
         CAMERA_LERP: 0.08
     };
 
@@ -242,7 +242,7 @@
         spinAngle: 0, spinTimer: 0, lateralInertia: 0, vibration: 0,
         engineTimer: 0,
         
-        // --- INJEÇÃO 20/10: Variáveis de Drift e Slipstream ---
+        // --- INJEÇÃO 20/10 ---
         driftSparks: 0, slipstreamTimer: 0,
         
         // Corrida
@@ -279,7 +279,7 @@
         resetPhysics: function() {
             this.speed = 0; this.pos = 0; this.playerX = 0; this.steer = 0;
             this.cameraX = 0;
-            this.driftSparks = 0; this.slipstreamTimer = 0; // INJEÇÃO 20/10
+            this.driftSparks = 0; this.slipstreamTimer = 0; // --- INJEÇÃO 20/10 ---
             this.lap = 1; this.maxLapPos = 0;
             this.status = 'RACING';
             this.finishTime = 0;
@@ -371,7 +371,6 @@
                     if (y > 0.8) { 
                         if (this.isOnline) {
                             if (this.isHost) {
-                                // CORREÇÃO DE LARGADA: Conta jogadores ativos REAIS
                                 const activePlayers = Object.values(this.remotePlayersData || {})
                                     .filter(p => (Date.now() - p.lastSeen < SAFETY.ZOMBIE_TIMEOUT));
                                 
@@ -610,12 +609,11 @@
                         finishTime: 0, 
                         name: cfg.name,
                         color: CHARACTERS[cfg.char].color,
-                        // NOVOS PARAMETROS DE IA
-                        ai_speedMult: diff.speedMult + (Math.random() * 0.05), // Variação leve
+                        ai_speedMult: diff.speedMult + (Math.random() * 0.05),
                         ai_accelMult: diff.accelMult,
                         ai_reaction: diff.reaction,
                         ai_lookAhead: diff.lookAhead,
-                        ai_targetLane: (i % 2 === 0 ? -0.5 : 0.5), // Faixa alvo
+                        ai_targetLane: (i % 2 === 0 ? -0.5 : 0.5),
                         ai_laneTimer: 0
                     });
                 });
@@ -781,14 +779,14 @@
             d.speed *= currentDrag;
 
             // --- INJEÇÃO 20/10: DRIFT ENGINE ---
-            if (Math.abs(d.targetSteer) > 0.6 && d.speed > 110 && absX < 1.3) {
+            if (Math.abs(d.targetSteer) > 0.5 && d.speed > 100 && absX < 1.3 && d.spinTimer <= 0) {
                 d.driftSparks = Math.min((d.driftSparks || 0) + 1, 100);
                 if (Math.random() > 0.3) {
-                    this.spawnParticle(w/2 + (d.targetSteer > 0 ? -40 : 40), h*0.9, d.driftSparks > 70 ? 'drift_blue' : 'drift_yellow');
+                    this.spawnParticle(w/2 + (d.targetSteer > 0 ? -45 : 45), h*0.9, d.driftSparks > 70 ? 'drift_blue' : 'drift_yellow');
                 }
             } else if (d.driftSparks > 0) {
                 if (d.driftSparks > 70) {
-                    d.speed = Math.min(CONF.TURBO_MAX_SPEED, d.speed + 60); // Mini-turbo Boost
+                    d.speed = Math.min(CONF.TURBO_MAX_SPEED, d.speed + 60); 
                     window.Sfx.play(600, 'square', 0.2, 0.2);
                     d.vibration = 8;
                     this.pushMsg("DRIFT BOOST!", "#0ff", 30);
@@ -804,16 +802,16 @@
                 const distZ = totalDistRival - totalDistPlayer;
                 const distX = Math.abs(r.x - d.playerX);
 
-                if (distZ > 50 && distZ < 600 && distX < 0.25 && r.status === 'RACING') {
+                if (distZ > 80 && distZ < 600 && distX < 0.3 && r.status === 'RACING') {
                     inVacuo = true;
                 }
             });
 
-            if (inVacuo && d.speed > 100) {
+            if (inVacuo && d.speed > 90) {
                 d.slipstreamTimer = (d.slipstreamTimer || 0) + 1;
-                if (d.slipstreamTimer > 30) {
-                    d.speed += 2.5; // Puxado pelo vácuo
-                    if (Math.random() > 0.5) this.spawnParticle(w/2 + (Math.random()-0.5)*150, h/2 + Math.random()*150, 'wind');
+                if (d.slipstreamTimer > 20) {
+                    d.speed += 3.5;
+                    if (Math.random() > 0.4) this.spawnParticle(w/2 + (Math.random()-0.5)*200, h/2 + Math.random()*150, 'wind');
                 }
             } else {
                 d.slipstreamTimer = 0;
@@ -954,8 +952,8 @@
 
         spawnParticle: function(x, y, type) {
             // --- INJEÇÃO 20/10 ---
-            if (type === 'drift_yellow') { particles.push({ x, y, vx: (Math.random()-0.5)*8, vy: -Math.random()*5, l: 15, maxL: 15, c: '#f1c40f' }); return; }
-            if (type === 'drift_blue') { particles.push({ x, y, vx: (Math.random()-0.5)*12, vy: -Math.random()*8, l: 20, maxL: 20, c: '#00d2d3' }); return; }
+            if (type === 'drift_yellow') { particles.push({ x, y, vx: (Math.random()-0.5)*8, vy: -Math.random()*5, l: 15, maxL: 15, c: '#f1c40f', isDrift: true }); return; }
+            if (type === 'drift_blue') { particles.push({ x, y, vx: (Math.random()-0.5)*12, vy: -Math.random()*8, l: 20, maxL: 20, c: '#00d2d3', isDrift: true }); return; }
             if (type === 'wind') { particles.push({ x, y, vx: 0, vy: 15 + Math.random()*15, l: 10, maxL: 10, c: 'rgba(255,255,255,0.6)', isLine: true }); return; }
             // ---------------------
             if(Math.random() > 0.5) return;
@@ -1033,16 +1031,19 @@
 
             particles.forEach(p => {
                 ctx.fillStyle = p.c; ctx.globalAlpha = p.l / p.maxL;
-                if (p.isLine) { // INJEÇÃO 20/10: Linhas de vento do vácuo
+                // --- INJEÇÃO 20/10 ---
+                if (p.isLine) {
                     ctx.strokeStyle = p.c; ctx.lineWidth = 3; ctx.lineCap = 'round';
                     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y - 60); ctx.stroke();
+                } else if (p.isDrift) {
+                    ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill();
                 } else {
                     ctx.beginPath(); ctx.arc(p.x, p.y, 4 + (p.maxL - p.l)*0.5, 0, Math.PI*2); ctx.fill();
                 }
+                // ---------------------
             }); ctx.globalAlpha = 1;
 
             if (d.state !== 'SPECTATE') {
-                // AJUSTE CRÍTICO DE POSIÇÃO DO KART (0.88 -> 0.92)
                 this.drawKartSprite(ctx, cx, h * 0.92 + d.bounce, w * 0.0055, d.steer, d.visualTilt, d.spinAngle, CHARACTERS[d.selectedChar].color, d.selectedChar);
             }
         },
@@ -1203,7 +1204,6 @@
             ctx.fillText(char.name, w/2, h*0.3 + 100);
             ctx.font = "20px 'Russo One'"; ctx.fillText("PISTA: " + TRACKS[this.selectedTrack].name, w/2, h*0.55);
             
-            // LÓGICA DE VISIBILIDADE DO BOTÃO DE RESET (Só para Host no Lobby Online)
             if (resetBtn) {
                 resetBtn.style.display = (this.isOnline && this.isHost) ? 'flex' : 'none';
             }
