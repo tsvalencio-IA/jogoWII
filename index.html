@@ -283,13 +283,23 @@
         window.onload = async () => {
             window.System.canvas = document.getElementById('game-canvas');
             window.System.video = document.getElementById('video-feed');
+            
+            // CORREÇÃO 1: Definir o resize para ajustar o canvas ao ecrã
+            window.System.resize = () => {
+                if(window.System.canvas) {
+                    window.System.canvas.width = window.innerWidth;
+                    window.System.canvas.height = window.innerHeight;
+                }
+            };
             window.System.resize();
             window.addEventListener('resize', window.System.resize);
 
-            window.System.menu = () => {
+            // CORREÇÃO 2: Definir a função home() chamada pelos botões
+            window.System.home = () => {
                 window.System.stopGame();
                 window.switchScreen('screen-menu');
             };
+            window.System.menu = window.System.home; // Mantém a referência do menu
 
             // 1. Iniciar Câmera
             document.getElementById('loading-text').innerText = "Iniciando Câmera...";
