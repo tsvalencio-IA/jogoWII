@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ThIAguinho Wii: Console OS</title>
+    
+    <!-- Bibliotecas Essenciais -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-core"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-converter"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-backend-webgl"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;700&family=Russo+One&family=Roboto:wght@300;400;700&display=swap');
+
+        :root {
+            --wii-bg: #ececec;
+            --wii-blue: #00b0f0;
+            --wii-dark: #333333;
+            --channel-hover: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--wii-bg);
+            font-family: 'Roboto', sans-serif;
+            touch-action: none; /* Previne scroll no mobile */
+        }
+
+        /* UI Fade Transitions 20/10 */
+        .screen-transition {
+            transition: opacity 0.5s ease-in-out, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .screen-hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.95);
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+        }
+        .screen-active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+        }
+
+        /* Canais do Wii */
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .wii-channel {
+            background: linear-gradient(135deg, #ffffff, #e0e0e0);
+            border: 4px solid #ccc;
+            border-radius: 15px;
+            height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .wii-channel:hover {
+            transform: translateY(-5px) scale(1.05);
+            border-color: var(--wii-blue);
+            box-shadow: 0 15px 30px rgba(0, 176, 240, 0.4);
+            background: #fff;
+        }
+
+        .wii-channel::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+        .wii-channel:hover::after { opacity: 1; }
+
+        .channel-title {
+            font-family: 'Russo One', sans-serif;
+            font-size: 24px;
+            color: var(--wii-dark);
+            margin-top: 10px;
+            text-align: center;
+            text-transform: uppercase;
+        }
+
+        .channel-icon { font-size: 48px; }
+
+        /* Game Overlay e Canvas */
+        #game-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        #video-feed {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 240px;
+            height: 180px;
+            border: 3px solid #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            transform: scaleX(-1); /* Espelhado */
+            z-index: 50;
+            object-fit: cover;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        #video-feed:hover { opacity: 1; }
+
+        .hud-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            color: white;
+            font-family: 'Russo One', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        /* Botão Home do Wii */
+        .btn-home {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: var(--wii-blue);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 100;
+            transition: transform 0.2s, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-home:hover {
+            transform: scale(1.1);
+            background: #0090c0;
+        }
+        
+        #loading-overlay {
+            background: rgba(0,0,0,0.9);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+        }
+
+        .spinner {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid var(--wii-blue);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- OVERLAY DE LOADING INICIAL -->
+    <div id="loading-overlay" class="screen-active">
+        <div class="spinner mb-4"></div>
+        <h1 class="text-3xl font-bold font-['Russo_One']">INICIANDO THIAGUINHO OS...</h1>
+        <p id="loading-text" class="mt-2 text-gray-400">Carregando IA de Visão Computacional (MoveNet)</p>
+    </div>
+
+    <!-- MENU PRINCIPAL (CANAIS) -->
+    <div id="screen-menu" class="screen-hidden flex flex-col items-center">
+        <div class="w-full bg-white shadow-md p-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-gray-800 flex items-center gap-2">
+                <span class="text-blue-500">ThIAguinho</span> Wii
+            </h1>
+            <div id="net-status" class="font-bold text-gray-500">OFFLINE 🔴</div>
+        </div>
+
+        <div class="channel-grid w-full mt-10" id="channels-container">
+            <!-- Gerado via JS -->
+        </div>
+    </div>
+
+    <!-- TELA DO JOGO (ENGINE CANVAS) -->
+    <div id="screen-game" class="screen-hidden">
+        <canvas id="game-canvas"></canvas>
+        <video id="video-feed" autoplay playsinline></video>
+        
+        <div class="hud-overlay text-4xl" id="hud-score">0</div>
+        
+        <button class="btn-home" onclick="window.System.home()">🏠</button>
+    </div>
+
+    <!-- TELA DE GAME OVER -->
+    <div id="screen-over" class="screen-hidden bg-black/90 flex flex-col items-center justify-center text-white">
+        <h1 class="text-6xl font-['Russo_One'] text-red-500 mb-4">FIM DE JOGO</h1>
+        <p class="text-3xl mb-8">PONTUAÇÃO: <span id="final-score" class="text-yellow-400">0</span></p>
+        <button onclick="window.System.home()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-full text-2xl transition-all shadow-lg shadow-blue-500/50">
+            VOLTAR AO MENU
+        </button>
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO FIREBASE NATIVA
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0ThqhfK6xc8P1D4WCkavhdXbb7zIaQJk",
+            authDomain: "thiaguinhowii.firebaseapp.com",
+            databaseURL: "https://thiaguinhowii-default-rtdb.firebaseio.com",
+            projectId: "thiaguinhowii",
+            storageBucket: "thiaguinhowii.firebasestorage.app",
+            messagingSenderId: "63695043126",
+            appId: "1:63695043126:web:abd6a8ba7792313991b697"
+        };
+        try {
+            if (typeof firebase !== 'undefined') {
+                firebase.initializeApp(firebaseConfig);
+                window.DB = firebase.database();
+                const statusEl = document.getElementById('net-status');
+                if(statusEl) {
+                    statusEl.innerHTML = "ONLINE 🟢";
+                    statusEl.style.color = "#4caf50";
+                }
+            }
+        } catch (e) { console.error("Erro Firebase", e); }
+
+        // MUDANÇA DE TELAS UI
+        window.switchScreen = function(screenId) {
+            ['screen-menu', 'screen-game', 'screen-over', 'loading-overlay'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    if(id === screenId) {
+                        el.classList.remove('screen-hidden');
+                        el.classList.add('screen-active');
+                    } else {
+                        el.classList.remove('screen-active');
+                        el.classList.add('screen-hidden');
+                    }
+                }
+            });
+        };
+    </script>
+
+    <!-- INJEÇÃO DE DEPENDÊNCIAS DO CORE E DOS JOGOS -->
+    <script src="js/core.js"></script>
+    <script src="js/game_kart.js"></script>
+    <script src="js/game_run.js"></script>
+    <script src="js/game_box.js"></script>
+    <script src="js/game_tennis.js"></script>
+
+    <script>
+        // INICIALIZAÇÃO DO SISTEMA
+        window.onload = async () => {
+            window.System.canvas = document.getElementById('game-canvas');
+            window.System.video = document.getElementById('video-feed');
+            window.System.resize();
+            window.addEventListener('resize', window.System.resize);
+
+            window.System.menu = () => {
+                window.System.stopGame();
+                window.switchScreen('screen-menu');
+            };
+
+            // 1. Iniciar Câmera
+            document.getElementById('loading-text').innerText = "Iniciando Câmera...";
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 }, audio: false });
+                window.System.video.srcObject = stream;
+                await new Promise((resolve) => { window.System.video.onloadedmetadata = () => resolve(); });
+            } catch(e) {
+                alert("Erro ao acessar a câmera. O Console precisa de permissão para funcionar!");
+                return;
+            }
+
+            // 2. Carregar IA (MoveNet)
+            document.getElementById('loading-text').innerText = "Carregando TensorFlow.js...";
+            await tf.ready();
+            const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
+            window.System.detector = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, detectorConfig);
+
+            // 3. Renderizar Canais e Iniciar
+            const container = document.getElementById('channels-container');
+            const icons = { 'kart': '🏎️', 'box': '🥊', 'tennis': '🏓', 'run': '🏃‍♂️' };
+            
+            window.Games.forEach(g => {
+                const div = document.createElement('div');
+                div.className = 'wii-channel';
+                div.innerHTML = `
+                    <div class="channel-icon">${icons[g.id] || '🎮'}</div>
+                    <div class="channel-title">${g.title}</div>
+                `;
+                div.onclick = () => {
+                    window.Sfx.init(); // Ativa AudioContext no primeiro click
+                    window.Sfx.click();
+                    window.System.activeGame = g;
+                    window.switchScreen('screen-game');
+                    if(g.logic.init) g.logic.init();
+                    window.System.loop();
+                };
+                div.onmouseenter = () => window.Sfx.hover();
+                container.appendChild(div);
+            });
+
+            window.switchScreen('screen-menu');
+        };
+    </script>
+</body>
+</html>
