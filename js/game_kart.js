@@ -1,18 +1,18 @@
 // =============================================================================
-// KART LEGENDS: TITANIUM MASTER FINAL V5 (CAMERA OVERHAUL)
+// KART LEGENDS: TITANIUM MASTER FINAL V6 (CHARACTER ART & AI OVERHAUL)
 // ARQUITETO: SENIOR GAME ENGINE ARCHITECT
-// STATUS: CÂMERA ARCADE 3RD PERSON CORRIGIDA + DRIFT E VÁCUO (20/10)
+// STATUS: CÂMERA 3RD PERSON + DRIFT + VÁCUO + PERSONAGENS REAIS + IA IMPLACÁVEL
 // =============================================================================
 
 (function() {
 
     // -----------------------------------------------------------------
-    // 1. DADOS E CONFIGURAÇÕES
+    // 1. DADOS E CONFIGURAÇÕES (IA AGRESSIVA ATUALIZADA)
     // -----------------------------------------------------------------
     const AI_DIFFICULTY_SETTINGS = {
-        'EASY':   { speedMult: 0.85, accelMult: 0.8,  reaction: 0.02, lookAhead: 10, errorRate: 0.05 },
-        'MEDIUM': { speedMult: 0.98, accelMult: 0.95, reaction: 0.05, lookAhead: 20, errorRate: 0.02 },
-        'HARD':   { speedMult: 1.12, accelMult: 1.2,  reaction: 0.15, lookAhead: 35, errorRate: 0.00 }
+        'EASY':   { speedMult: 0.90, accelMult: 0.9,  reaction: 0.05, lookAhead: 15, errorRate: 0.05, rubberBand: 0.0 },
+        'MEDIUM': { speedMult: 1.05, accelMult: 1.1,  reaction: 0.10, lookAhead: 25, errorRate: 0.02, rubberBand: 0.3 },
+        'HARD':   { speedMult: 1.25, accelMult: 1.4,  reaction: 0.25, lookAhead: 40, errorRate: 0.00, rubberBand: 0.8 } // IA Brutal
     };
     
     const CURRENT_DIFFICULTY = 'HARD'; 
@@ -35,19 +35,9 @@
     ];
 
     const CONF = {
-        MAX_SPEED: 235,
-        TURBO_MAX_SPEED: 350,
-        FRICTION: 0.98,
-        OFFROAD_DECEL: 0.92,
-        ROAD_WIDTH: 2000,
-        SEGMENT_LENGTH: 200,
-        DRAW_DISTANCE: 250, 
-        RUMBLE_LENGTH: 3,
-        TOTAL_LAPS: 3,
-        // --- CORREÇÃO DA CÂMERA 3ª PESSOA (AFASTADA) ---
-        CAMERA_HEIGHT: 150, // Posição do horizonte corrigida (não tão alta)
-        CAMERA_DEPTH: 1.2,  // Zoom out da pista (FOV mais aberto)
-        CAMERA_LERP: 0.08
+        MAX_SPEED: 235, TURBO_MAX_SPEED: 350, FRICTION: 0.98, OFFROAD_DECEL: 0.92, ROAD_WIDTH: 2000,
+        SEGMENT_LENGTH: 200, DRAW_DISTANCE: 250, RUMBLE_LENGTH: 3, TOTAL_LAPS: 3,
+        CAMERA_HEIGHT: 150, CAMERA_DEPTH: 1.2, CAMERA_LERP: 0.08
     };
 
     const SAFETY = { ZOMBIE_TIMEOUT: 15000, MAX_RACE_TIME: 300000, MAINTENANCE_RATE: 2000 };
@@ -136,11 +126,7 @@
         state: 'MODE_SELECT', raceState: 'LOBBY', roomId: 'mario_arena_titanium_v8', selectedChar: 0, selectedTrack: 0, isReady: false, isOnline: false, isHost: false,
         dbRef: null, roomRef: null, lastSync: 0, totalRacers: 0, remotePlayersData: {}, localBots: [], maintenanceInterval: null,
         speed: 0, pos: 0, playerX: 0, steer: 0, targetSteer: 0, cameraX: 0, nitro: 100, turboLock: false, gestureTimer: 0, spinAngle: 0, spinTimer: 0, lateralInertia: 0, vibration: 0, engineTimer: 0,
-        
-        // --- INJEÇÃO 20/10 ---
-        driftSparks: 0, slipstreamTimer: 0,
-        
-        lap: 1, maxLapPos: 0, status: 'RACING', finishTime: 0, finalRank: 0, score: 0, visualTilt: 0, bounce: 0, skyColor: 0, inputActive: false, virtualWheel: { x:0, y:0, r:60, opacity:0, isHigh: false }, rivals: [], 
+        driftSparks: 0, slipstreamTimer: 0, lap: 1, maxLapPos: 0, status: 'RACING', finishTime: 0, finalRank: 0, score: 0, visualTilt: 0, bounce: 0, skyColor: 0, inputActive: false, virtualWheel: { x:0, y:0, r:60, opacity:0, isHigh: false }, rivals: [], 
 
         init: function() { this.cleanup(); this.state = 'MODE_SELECT'; this.setupUI(); this.resetPhysics(); KartAudio.init(); window.System.msg("SELECIONE O MODO"); },
 
@@ -273,11 +259,19 @@
             
             const diff = AI_DIFFICULTY_SETTINGS[CURRENT_DIFFICULTY];
             if (!this.isOnline || (this.isOnline && this.isHost)) {
-                const botConfigs = [ { char: 3, name: 'Bowser' }, { char: 4, name: 'Toad' }, { char: 6, name: 'DK' }, { char: 7, name: 'Wario' } ];
+                // Bots usam personagens dinâmicos, excluindo o do jogador se possível
+                let availableChars = [0, 1, 2, 3, 4, 5, 6, 7].filter(c => c !== this.selectedChar);
+                const botConfigs = [];
+                for(let i=0; i<4; i++) {
+                    let rIdx = Math.floor(Math.random() * availableChars.length);
+                    let cId = availableChars.splice(rIdx, 1)[0];
+                    botConfigs.push({ char: cId, name: CHARACTERS[cId].name });
+                }
+
                 botConfigs.forEach((cfg, i) => {
                     this.localBots.push({
                         id: 'cpu' + i, charId: cfg.char, pos: 0, x: (i % 2 === 0 ? -0.5 : 0.5) * (1 + i*0.2), speed: 0, lap: 1, status: 'RACING', finishTime: 0, name: cfg.name, color: CHARACTERS[cfg.char].color,
-                        ai_speedMult: diff.speedMult + (Math.random() * 0.05), ai_accelMult: diff.accelMult, ai_reaction: diff.reaction, ai_lookAhead: diff.lookAhead, ai_targetLane: (i % 2 === 0 ? -0.5 : 0.5), ai_laneTimer: 0
+                        ai_speedMult: diff.speedMult + (Math.random() * 0.1), ai_accelMult: diff.accelMult, ai_reaction: diff.reaction, ai_lookAhead: diff.lookAhead, ai_targetLane: (i % 2 === 0 ? -0.5 : 0.5), ai_laneTimer: 0
                     });
                 });
                 if(!this.isOnline) { this.rivals = this.localBots; } 
@@ -364,7 +358,7 @@
             if(d.status === 'RACING' && d.spinTimer <= 0 && isAccelerating) { d.speed += (max - d.speed) * char.accel; } else { d.speed *= 0.96; }
             d.speed *= currentDrag;
 
-            // --- INJEÇÃO 20/10: DRIFT ENGINE ---
+            // DRIFT ENGINE
             if (Math.abs(d.targetSteer) > 0.5 && d.speed > 100 && absX < 1.3 && d.spinTimer <= 0) {
                 d.driftSparks = Math.min((d.driftSparks || 0) + 1, 100);
                 if (Math.random() > 0.3) this.spawnParticle(w/2 + (d.targetSteer > 0 ? -45 : 45), h*0.88, d.driftSparks > 70 ? 'drift_blue' : 'drift_yellow');
@@ -373,7 +367,7 @@
                 d.driftSparks = 0;
             }
 
-            // --- INJEÇÃO 20/10: SLIPSTREAM (VÁCUO) ---
+            // SLIPSTREAM (VÁCUO)
             let inVacuo = false;
             d.rivals.forEach(r => {
                 const distZ = ((Number(r.lap) * trackLength) + Number(r.pos)) - ((d.lap * trackLength) + d.pos);
@@ -394,24 +388,48 @@
             d.playerX += d.lateralInertia;
             if(Math.abs(d.lateralInertia) > 0.12 && d.speed > 60 && absX < 1.4) { this.spawnParticle(w/2 - 45, h*0.92, 'smoke'); this.spawnParticle(w/2 + 45, h*0.92, 'smoke'); }
 
-            // IA Lógica
+            // IA AGRESSIVA IMPLACÁVEL (INJEÇÃO 20/10)
             if (this.localBots.length > 0 && d.state !== 'GAMEOVER') {
+                const diff = AI_DIFFICULTY_SETTINGS[CURRENT_DIFFICULTY];
+                let playerTotalDist = (d.lap * trackLength) + d.pos;
+
                 this.localBots.forEach(r => {
                     if (r.status === 'FINISHED') return;
-                    const rChar = CHARACTERS[r.charId || 0]; const diff = AI_DIFFICULTY_SETTINGS[CURRENT_DIFFICULTY];
+                    const rChar = CHARACTERS[r.charId || 0]; 
+                    
+                    let botTotalDist = (r.lap * trackLength) + r.pos;
+                    let distBehind = playerTotalDist - botTotalDist;
+                    
+                    // Sistema de Rubber-Banding: Se a IA ficar muito para trás, ela ganha velocidade extra monstruosa.
+                    let dynamicRubberBand = 1.0;
+                    if (distBehind > 300 && diff.rubberBand > 0) {
+                        dynamicRubberBand = 1.0 + (Math.min(distBehind, 4000) / 4000) * diff.rubberBand; 
+                    }
+
                     const futureSeg = getSegment((r.pos + (r.ai_lookAhead * CONF.SEGMENT_LENGTH)) / CONF.SEGMENT_LENGTH);
-                    let targetSpeed = CONF.MAX_SPEED * rChar.speedInfo * r.ai_speedMult;
-                    if (Math.abs(futureSeg.curve) > 2) targetSpeed *= 0.75; else if (Math.abs(futureSeg.curve) > 1) targetSpeed *= 0.92;
+                    let targetSpeed = CONF.MAX_SPEED * rChar.speedInfo * r.ai_speedMult * dynamicRubberBand;
+                    
+                    if (Math.abs(futureSeg.curve) > 2) targetSpeed *= 0.85; else if (Math.abs(futureSeg.curve) > 1) targetSpeed *= 0.95;
                     
                     r.ai_laneTimer++;
-                    if (r.ai_laneTimer > 100) { r.ai_laneTimer = 0; if (Math.random() < 0.3) r.ai_targetLane = [-0.7, 0, 0.7][Math.floor(Math.random() * 3)]; }
+                    if (r.ai_laneTimer > 80) { 
+                        r.ai_laneTimer = 0; 
+                        // IA tenta bloquear o jogador se estiver na frente
+                        if (distBehind < 0 && distBehind > -500 && Math.random() < 0.8) {
+                            r.ai_targetLane = d.playerX; 
+                        } else if (Math.random() < 0.4) {
+                            r.ai_targetLane = [-0.7, 0, 0.7][Math.floor(Math.random() * 3)]; 
+                        }
+                    }
                     if (futureSeg.curve > 2) r.ai_targetLane = -0.8; else if (futureSeg.curve < -2) r.ai_targetLane = 0.8; 
 
                     let moveX = (r.ai_targetLane - r.x) * r.ai_reaction; moveX -= (getSegment(r.pos / CONF.SEGMENT_LENGTH).curve * 0.04); 
                     r.x += moveX; if (Math.abs(r.x) > 1.8) { r.x = Math.sign(r.x)*1.8; r.speed *= 0.95; } 
 
-                    if (r.speed < targetSpeed) r.speed += rChar.accel * r.ai_accelMult; else r.speed *= 0.995; 
+                    // Aceleração Brutal
+                    if (r.speed < targetSpeed) r.speed += rChar.accel * r.ai_accelMult * (dynamicRubberBand > 1 ? 1.5 : 1); else r.speed *= 0.995; 
                     r.pos += r.speed;
+
                     if (r.pos >= trackLength) { r.pos -= trackLength; r.lap++; if (r.lap > CONF.TOTAL_LAPS) { r.status = 'FINISHED'; if (r.finishTime === 0) r.finishTime = Date.now(); r.speed = 0; r.lap = CONF.TOTAL_LAPS; } }
                 });
             }
@@ -511,24 +529,126 @@
             }); ctx.globalAlpha = 1;
 
             if (d.state !== 'SPECTATE') {
-                // --- CORREÇÃO DA CÂMERA: KART MENOR E POSIÇÃO AJUSTADA ---
                 this.drawKartSprite(ctx, cx, h * 0.85 + d.bounce, w * 0.0040, d.steer, d.visualTilt, d.spinAngle, CHARACTERS[d.selectedChar].color, d.selectedChar);
             }
         },
 
+        // --- INJEÇÃO 20/10: ARTE DETALHADA DOS PERSONAGENS NO CANVAS ---
         drawKartSprite: function(ctx, cx, y, carScale, steer, tilt, spinAngle, color, charId) {
             ctx.save(); ctx.translate(cx, y); ctx.scale(carScale, carScale); ctx.rotate(tilt * 0.03 + spinAngle); 
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(0, 35, 60, 15, 0, 0, Math.PI*2); ctx.fill();
+            
             const stats = CHARACTERS[charId] || CHARACTERS[0];
+            const isHeavy = stats.weight > 1.2;
+            const isLight = stats.weight < 0.9;
+            
+            // Sombra do Kart
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; 
+            ctx.beginPath(); ctx.ellipse(0, 35, isHeavy ? 70 : (isLight ? 50 : 60), 15, 0, 0, Math.PI*2); ctx.fill();
+            
+            // Corpo do Kart Dinâmico (Muda baseado no peso/personagem)
             const gradBody = ctx.createLinearGradient(-30, 0, 30, 0); 
             gradBody.addColorStop(0, color); gradBody.addColorStop(0.5, '#fff'); gradBody.addColorStop(1, color);
-            ctx.fillStyle = gradBody; ctx.beginPath(); ctx.moveTo(-25, -30); ctx.lineTo(25, -30); ctx.lineTo(40, 10); ctx.lineTo(10, 35); ctx.lineTo(-10, 35); ctx.lineTo(-40, 10); ctx.fill();
-            const dw = (wx, wy) => { ctx.save(); ctx.translate(wx, wy); ctx.rotate(steer * 0.8); ctx.fillStyle = '#111'; ctx.fillRect(-12, -15, 24, 30); ctx.fillStyle = '#666'; ctx.fillRect(-5, -5, 10, 10); ctx.restore(); };
-            dw(-45, 15); dw(45, 15); ctx.fillStyle='#111'; ctx.fillRect(-50, -25, 20, 30); ctx.fillRect(30, -25, 20, 30);
-            ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3); ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(0, -20, 18, 0, Math.PI*2); ctx.fill(); 
-            ctx.fillStyle = stats.hat; ctx.beginPath(); ctx.arc(0, -25, 18, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(0, -25, 22, 5, 0, Math.PI, 0); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -32, 6, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.font='bold 8px Arial'; ctx.textAlign='center'; ctx.fillText(stats.name[0], 0, -30);
+            ctx.fillStyle = gradBody; 
+            
+            ctx.beginPath(); 
+            if (isHeavy) {
+                // Kart Largo / Robusto
+                ctx.moveTo(-35, -30); ctx.lineTo(35, -30); ctx.lineTo(50, 10); ctx.lineTo(15, 35); ctx.lineTo(-15, 35); ctx.lineTo(-50, 10); 
+            } else if (isLight) {
+                // Kart Fino / Esportivo
+                ctx.moveTo(-15, -30); ctx.lineTo(15, -30); ctx.lineTo(30, 10); ctx.lineTo(10, 35); ctx.lineTo(-10, 35); ctx.lineTo(-30, 10); 
+            } else {
+                // Kart Standard
+                ctx.moveTo(-25, -30); ctx.lineTo(25, -30); ctx.lineTo(40, 10); ctx.lineTo(10, 35); ctx.lineTo(-10, 35); ctx.lineTo(-40, 10); 
+            }
+            ctx.fill();
+
+            // Rodas (Estilo do pneu muda se for pesado)
+            const wheelW = isHeavy ? 24 : 20;
+            const dw = (wx, wy) => { 
+                ctx.save(); ctx.translate(wx, wy); ctx.rotate(steer * 0.8); 
+                ctx.fillStyle = '#111'; ctx.fillRect(-wheelW/2, -15, wheelW, 30); 
+                ctx.fillStyle = '#666'; ctx.fillRect(-5, -5, 10, 10); ctx.restore(); 
+            };
+            dw(isHeavy ? -55 : -45, 15); dw(isHeavy ? 55 : 45, 15); 
+            ctx.fillStyle='#111'; ctx.fillRect(isHeavy ? -60 : -50, -25, wheelW, 30); ctx.fillRect(isHeavy ? 60 - wheelW : 30, -25, wheelW, 30);
+            
+            // --- DETALHAMENTO DE PERSONAGENS ESPECÍFICOS ---
+            ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3); 
+            
+            const n = stats.name;
+            
+            if (n === 'MARIO' || n === 'LUIGI' || n === 'WARIO') {
+                // Rosto (Pele)
+                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(0, -20, 18, 0, Math.PI*2); ctx.fill(); 
+                // Bigode
+                ctx.fillStyle = '#000'; 
+                if(n === 'WARIO') { ctx.beginPath(); ctx.moveTo(-20, -18); ctx.lineTo(-10, -12); ctx.lineTo(0, -18); ctx.lineTo(10, -12); ctx.lineTo(20, -18); ctx.stroke(); ctx.lineWidth = 4; }
+                else { ctx.beginPath(); ctx.ellipse(0, -12, 12, 4, 0, 0, Math.PI); ctx.fill(); }
+                // Nariz (Maior para Wario/Mario)
+                ctx.fillStyle = n === 'WARIO' ? '#ff9ff3' : '#ffaa88'; ctx.beginPath(); ctx.arc(0, -18, n==='WARIO'?8:6, 0, Math.PI*2); ctx.fill();
+                // Chapéu
+                ctx.fillStyle = stats.hat; ctx.beginPath(); ctx.arc(0, -25, 18, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(0, -25, 22, 5, 0, Math.PI, 0); ctx.fill();
+                // Logo
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -32, 6, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = n === 'WARIO' ? '#3498db' : '#000'; ctx.font='bold 8px Arial'; ctx.textAlign='center'; ctx.fillText(n[0], 0, -30);
+            } 
+            else if (n === 'PEACH') {
+                // Cabelo Loiro nas costas
+                ctx.fillStyle = '#f1c40f'; ctx.fillRect(-15, -20, 30, 25);
+                // Rosto
+                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(0, -20, 15, 0, Math.PI*2); ctx.fill(); 
+                // Coroa Dourada
+                ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.moveTo(-12, -25); ctx.lineTo(-15, -40); ctx.lineTo(-5, -30); ctx.lineTo(0, -42); ctx.lineTo(5, -30); ctx.lineTo(15, -40); ctx.lineTo(12, -25); ctx.fill();
+                // Jóias da Coroa
+                ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(0, -35, 3, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(-8, -32, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(8, -32, 2, 0, Math.PI*2); ctx.fill();
+            } 
+            else if (n === 'BOWSER') {
+                // Casco Verde Gigante atrás
+                ctx.fillStyle = '#27ae60'; ctx.beginPath(); ctx.arc(0, -5, 28, Math.PI, 0); ctx.fill();
+                // Espinhos do casco
+                ctx.fillStyle = '#ecf0f1'; ctx.beginPath(); ctx.moveTo(-15, -20); ctx.lineTo(-20, -35); ctx.lineTo(-5, -25); ctx.fill(); ctx.beginPath(); ctx.moveTo(15, -20); ctx.lineTo(20, -35); ctx.lineTo(5, -25); ctx.fill();
+                // Cabeça
+                ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(0, -22, 18, 0, Math.PI*2); ctx.fill();
+                // Focinho e Cabelo Ruivo
+                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.ellipse(0, -12, 15, 8, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(0, -38, 8, 0, Math.PI*2); ctx.fill(); // Cabelo topo
+                // Chifres
+                ctx.fillStyle = '#ecf0f1'; ctx.beginPath(); ctx.moveTo(-12, -30); ctx.lineTo(-25, -40); ctx.lineTo(-5, -35); ctx.fill(); ctx.beginPath(); ctx.moveTo(12, -30); ctx.lineTo(25, -40); ctx.lineTo(5, -35); ctx.fill();
+            }
+            else if (n === 'TOAD') {
+                // Rosto pequeno
+                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(0, -15, 12, 0, Math.PI*2); ctx.fill(); 
+                // Cabeça Cogumelo
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -30, 25, 18, 0, 0, Math.PI*2); ctx.fill();
+                // Pintas Vermelhas
+                ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(0, -35, 8, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-15, -28, 6, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(15, -28, 6, 0, Math.PI*2); ctx.fill();
+            }
+            else if (n === 'YOSHI') {
+                // Cabeça de Dinossauro
+                ctx.fillStyle = '#76ff03'; ctx.beginPath(); ctx.arc(0, -20, 16, 0, Math.PI*2); ctx.fill();
+                // Focinho branco grande
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.ellipse(0, -10, 20, 12, 0, 0, Math.PI*2); ctx.fill();
+                // Escamas vermelhas atrás
+                ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(0, -35, 6, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(0, -25, 8, 0, Math.PI*2); ctx.fill();
+            }
+            else if (n === 'DK') {
+                // Corpo Gorila
+                ctx.fillStyle = '#5d4037'; ctx.beginPath(); ctx.arc(0, -22, 22, 0, Math.PI*2); ctx.fill();
+                // Focinho pêssego
+                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.ellipse(0, -12, 18, 10, 0, 0, Math.PI*2); ctx.fill();
+                // Gravata Vermelha
+                ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.moveTo(-8, 0); ctx.lineTo(8, 0); ctx.lineTo(0, 20); ctx.fill();
+                ctx.fillStyle = '#ff0'; ctx.font='bold 6px Arial'; ctx.textAlign='center'; ctx.fillText('DK', 0, 6);
+            }
+            else {
+                // Fallback Genérico
+                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(0, -20, 18, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillStyle = stats.hat; ctx.beginPath(); ctx.arc(0, -25, 18, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(0, -25, 22, 5, 0, Math.PI, 0); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -32, 6, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#000'; ctx.font='bold 8px Arial'; ctx.textAlign='center'; ctx.fillText(stats.name[0], 0, -30);
+            }
+
             ctx.restore(); ctx.restore(); 
         },
 
