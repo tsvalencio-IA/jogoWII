@@ -1,7 +1,7 @@
 // =============================================================================
-// KART LEGENDS: TITANIUM MASTER FINAL V7 (THEMED KARTS & REAR-VIEW ART)
+// KART LEGENDS: TITANIUM MASTER FINAL V8 (5TH PERSON CAM & UNIQUE KARTS)
 // ARQUITETO: SENIOR GAME ENGINE ARCHITECT
-// STATUS: 100% COMPLETO. CUSTOM KARTS PARA CADA PERSONAGEM (VISÃO TRASEIRA).
+// STATUS: 100% COMPLETO. VISÃO PANORÂMICA E ARTE INDIVIDUAL.
 // =============================================================================
 
 (function() {
@@ -37,7 +37,10 @@
     const CONF = {
         MAX_SPEED: 235, TURBO_MAX_SPEED: 350, FRICTION: 0.98, OFFROAD_DECEL: 0.92, ROAD_WIDTH: 2000,
         SEGMENT_LENGTH: 200, DRAW_DISTANCE: 250, RUMBLE_LENGTH: 3, TOTAL_LAPS: 3,
-        CAMERA_HEIGHT: 150, CAMERA_DEPTH: 1.2, CAMERA_LERP: 0.08
+        // --- CÂMERA 5ª PESSOA (MUITO MAIS ALTA E AFASTADA) ---
+        CAMERA_HEIGHT: 380, // Aumentado drasticamente para ver as curvas lá na frente
+        CAMERA_DEPTH: 1.0,  // Ajustado para um FOV mais amplo
+        CAMERA_LERP: 0.08
     };
 
     const SAFETY = { ZOMBIE_TIMEOUT: 15000, MAX_RACE_TIME: 300000, MAINTENANCE_RATE: 2000 };
@@ -498,7 +501,7 @@
                 d.rivals.forEach(r => {
                     let relPos = r.pos - d.pos; if(relPos < -trackLength/2) relPos += trackLength;
                     if (Math.abs(Math.floor(relPos / CONF.SEGMENT_LENGTH) - n) < 2.0 && n > 0) {
-                        this.drawKartSprite(ctx, coord.x + (r.x * (w*1.5) * coord.scale), coord.y, w*0.0055*coord.scale, 0, 0, 0, r.color, r.charId);
+                        this.drawKartSprite(ctx, coord.x + (r.x * (w*1.5) * coord.scale), coord.y, w*0.0035*coord.scale, 0, 0, 0, r.color, r.charId);
                         if (r.status === 'FINISHED') { ctx.fillStyle = "#ff0"; ctx.font = `bold ${20*coord.scale}px Arial`; ctx.fillText("🏁", coord.x + (r.x * (w*1.5) * coord.scale), coord.y - 80*coord.scale); }
                     }
                 });
@@ -512,7 +515,8 @@
             }); ctx.globalAlpha = 1;
 
             if (d.state !== 'SPECTATE') {
-                this.drawKartSprite(ctx, cx, h * 0.85 + d.bounce, w * 0.0040, d.steer, d.visualTilt, d.spinAngle, CHARACTERS[d.selectedChar].color, d.selectedChar);
+                // --- CÂMERA 5ª PESSOA: Kart Desce, Escala Diminui ---
+                this.drawKartSprite(ctx, cx, h * 0.95 + d.bounce, w * 0.0035, d.steer, d.visualTilt, d.spinAngle, CHARACTERS[d.selectedChar].color, d.selectedChar);
             }
         },
 
@@ -533,207 +537,214 @@
             ctx.fillStyle = 'rgba(0,0,0,0.5)'; 
             ctx.beginPath(); ctx.ellipse(0, 35, w > 1.2 ? 75 : (w < 0.9 ? 55 : 65), 15, 0, 0, Math.PI*2); ctx.fill();
 
-            // 2. Sistema de Rodas (Comuns, mas ajustáveis)
+            // 2. Sistema de Rodas Universais
             const drawWheels = (wWidth, wHeight, colorObj) => {
                 const dw = (wx, wy, isFront) => { 
                     ctx.save(); ctx.translate(wx, wy); if(isFront) ctx.rotate(steer * 0.8); 
                     ctx.fillStyle = colorObj || '#111'; ctx.fillRect(-wWidth/2, -wHeight/2, wWidth, wHeight); 
-                    ctx.fillStyle = '#555'; ctx.fillRect(-wWidth/2 + 3, -wHeight/2 + 3, wWidth - 6, wHeight - 6); // Calota simples
+                    ctx.fillStyle = '#555'; ctx.fillRect(-wWidth/2 + 3, -wHeight/2 + 3, wWidth - 6, wHeight - 6); 
                     ctx.restore(); 
                 };
-                // Traseiras
                 dw(-45 - (w>1.2?10:0), 15, false); dw(45 + (w>1.2?10:0), 15, false);
-                // Dianteiras
                 dw(-40 - (w>1.2?10:0), -15, true); dw(40 + (w>1.2?10:0), -15, true);
             };
 
-            // 3. Desenho Específico do Kart + Personagem
+            // 3. DESENHO ESPECÍFICO (KART + PERSONAGEM DE COSTAS)
             if (n === 'DK') {
-                // Kart: BARRIL DE MADEIRA
-                drawWheels(28, 35, '#2c3e50');
+                // Kart: BARRIL GIGANTE
+                drawWheels(28, 38, '#2c3e50'); // Rodões rústicos
                 
-                // Corpo do Barril
-                ctx.fillStyle = '#8B4513'; // Madeira escura
-                ctx.beginPath(); ctx.ellipse(0, 0, 45, 30, 0, 0, Math.PI*2); ctx.fill();
+                // Barril
+                ctx.fillStyle = '#8B4513'; 
+                ctx.beginPath(); ctx.ellipse(0, 0, 50, 35, 0, 0, Math.PI*2); ctx.fill();
                 
-                // Tiras de metal do Barril
-                ctx.strokeStyle = '#bdc3c7'; ctx.lineWidth = 5;
-                ctx.beginPath(); ctx.ellipse(0, 0, 45, 12, 0, 0, Math.PI*2); ctx.stroke();
+                // Tiras do Barril
+                ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 6;
+                ctx.beginPath(); ctx.ellipse(0, -10, 48, 15, 0, 0, Math.PI); ctx.stroke();
+                ctx.beginPath(); ctx.ellipse(0, 10, 48, 15, 0, 0, Math.PI); ctx.stroke();
+
+                // Logo DK atrás
+                ctx.fillStyle = '#f1c40f'; ctx.font = 'bold 24px Arial'; ctx.textAlign = 'center'; ctx.fillText('DK', 0, 10);
                 
-                // Personagem DK (Costas Largas)
+                // Personagem DK (Gorila Largo de Costas)
                 ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
-                ctx.fillStyle = '#5d4037'; // Pelo do gorila
-                ctx.beginPath(); ctx.ellipse(0, -25, 28, 35, 0, 0, Math.PI*2); ctx.fill(); // Costas
+                ctx.fillStyle = '#4e342e'; // Pelo escuro
+                ctx.beginPath(); ctx.ellipse(0, -25, 32, 40, 0, 0, Math.PI*2); ctx.fill(); 
                 
-                // Gravata Vermelha visível pelos ombros
-                ctx.fillStyle = '#e74c3c'; 
-                ctx.beginPath(); ctx.moveTo(-25, -45); ctx.lineTo(-15, -45); ctx.lineTo(-20, -10); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(25, -45); ctx.lineTo(15, -45); ctx.lineTo(20, -10); ctx.fill();
+                // O topo da cabeça do gorila (um pouco bicuda)
+                ctx.beginPath(); ctx.moveTo(-15, -55); ctx.lineTo(0, -70); ctx.lineTo(15, -55); ctx.fill();
                 ctx.restore();
             } 
-            else if (n === 'MARIO' || n === 'LUIGI') {
-                // Kart: PIPE FRAME CLÁSSICO (Estrutura de tubos)
-                drawWheels(20, 30);
-                
-                // Motor Traseiro
-                ctx.fillStyle = '#7f8c8d'; ctx.fillRect(-15, 20, 30, 15);
-                ctx.fillStyle = '#34495e'; ctx.fillRect(-10, 35, 20, 8); // Escapamento
-                
-                // Estrutura Tubular
-                ctx.strokeStyle = stats.color; ctx.lineWidth = 8; ctx.lineCap = 'round';
-                ctx.beginPath(); ctx.moveTo(-25, -20); ctx.lineTo(25, -20); ctx.lineTo(35, 10); ctx.lineTo(-35, 10); ctx.closePath(); ctx.stroke();
-                
-                // Personagem (Macacão e Chapéu de Costas)
-                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
-                ctx.fillStyle = (n === 'MARIO') ? '#e74c3c' : '#2ecc71'; // Camisa
-                ctx.beginPath(); ctx.ellipse(0, -15, 18, 20, 0, 0, Math.PI*2); ctx.fill();
-                
-                ctx.fillStyle = '#2980b9'; // Macacão Azul (Alças de costas)
-                ctx.fillRect(-12, -25, 6, 25); ctx.fillRect(6, -25, 6, 25);
-                ctx.fillRect(-15, -5, 30, 15); // Cinto traseiro
-
-                // Chapéu
-                ctx.fillStyle = stats.hat; 
-                ctx.beginPath(); ctx.ellipse(0, -35, 18, 15, 0, 0, Math.PI*2); ctx.fill(); // Copa do chapéu
-                ctx.beginPath(); ctx.ellipse(0, -30, 22, 6, 0, 0, Math.PI*2); ctx.fill(); // Aba de trás
-                ctx.restore();
-            }
-            else if (n === 'PEACH') {
-                // Kart: CARRUAGEM REAL
-                drawWheels(18, 28, '#ecf0f1'); // Rodas brancas
-                
-                // Chassi Rosa e Dourado
-                ctx.fillStyle = '#ff9ff3'; 
-                ctx.beginPath(); ctx.moveTo(-20, -30); ctx.lineTo(20, -30); ctx.lineTo(35, 15); ctx.lineTo(-35, 15); ctx.fill();
-                ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 4; ctx.stroke(); // Borda de ouro
-                
-                // Personagem Peach (Cabelo Loiro e Coroa)
-                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
-                ctx.fillStyle = '#ff9ff3'; // Vestido
-                ctx.beginPath(); ctx.ellipse(0, -10, 20, 25, 0, 0, Math.PI*2); ctx.fill();
-                
-                ctx.fillStyle = '#f1c40f'; // Cabelo loiro longo cobrindo as costas
-                ctx.beginPath(); ctx.moveTo(-15, -40); ctx.lineTo(15, -40); ctx.lineTo(20, -5); ctx.lineTo(-20, -5); ctx.fill();
-                
-                // Coroa Dourada
-                ctx.fillStyle = '#f39c12';
-                ctx.beginPath(); ctx.moveTo(-10, -40); ctx.lineTo(-15, -55); ctx.lineTo(-5, -45); ctx.lineTo(0, -58); ctx.lineTo(5, -45); ctx.lineTo(15, -55); ctx.lineTo(10, -40); ctx.fill();
-                ctx.restore();
-            }
             else if (n === 'BOWSER') {
-                // Kart: KOOPA CLOWN CAR ESTILO (Casco Escuro)
-                drawWheels(30, 35);
+                // Kart: CASCO-TANQUE ESCURO
+                drawWheels(30, 40); // Pneus enormes
                 
-                // Chassi Bacia Escura
+                // Chassi Tanque
                 ctx.fillStyle = '#2c3e50'; 
-                ctx.beginPath(); ctx.ellipse(0, 0, 55, 35, 0, 0, Math.PI*2); ctx.fill();
-                ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 6; ctx.stroke(); // Borda Laranja
+                ctx.beginPath(); ctx.ellipse(0, 5, 60, 40, 0, 0, Math.PI*2); ctx.fill();
+                ctx.strokeStyle = '#e67e22'; ctx.lineWidth = 8; ctx.stroke(); 
+                
+                // Escapamentos a cuspir fogo leve
+                ctx.fillStyle = '#7f8c8d'; ctx.fillRect(-30, 25, 12, 20); ctx.fillRect(18, 25, 12, 20);
+                ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.arc(-24, 45, 6, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(24, 45, 6, 0, Math.PI*2); ctx.fill();
                 
                 // Personagem Bowser (Casco Verde Gigante)
                 ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
                 ctx.fillStyle = '#27ae60'; // Casco verde
-                ctx.beginPath(); ctx.ellipse(0, -15, 35, 40, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(0, -20, 38, 45, 0, 0, Math.PI*2); ctx.fill();
                 
-                // Espinhos do Casco
+                // Borda branca do casco
+                ctx.strokeStyle = '#ecf0f1'; ctx.lineWidth = 6; ctx.stroke();
+                
+                // Espinhos
                 ctx.fillStyle = '#ecf0f1';
-                const drawSpike = (sx, sy) => { ctx.beginPath(); ctx.arc(sx, sy, 6, 0, Math.PI*2); ctx.fill(); };
-                drawSpike(0, -35); drawSpike(-15, -20); drawSpike(15, -20); drawSpike(0, -5);
+                const drawSpike = (sx, sy) => { ctx.beginPath(); ctx.arc(sx, sy, 8, 0, Math.PI*2); ctx.fill(); };
+                drawSpike(0, -45); drawSpike(-20, -25); drawSpike(20, -25); drawSpike(0, -5);
                 
                 // Cabelo Laranja no topo
-                ctx.fillStyle = '#e67e22';
-                ctx.beginPath(); ctx.ellipse(0, -55, 12, 8, 0, 0, Math.PI*2); ctx.fill();
-                ctx.restore();
-            }
-            else if (n === 'TOAD') {
-                // Kart: COGUMELO BRANCO
-                drawWheels(16, 24);
-                
-                // Chassi Cogumelo
-                ctx.fillStyle = '#ecf0f1';
-                ctx.beginPath(); ctx.ellipse(0, 5, 30, 20, 0, 0, Math.PI*2); ctx.fill();
-                
-                // Personagem Toad (Cabeça Gigante de Costas)
-                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
-                ctx.fillStyle = '#3498db'; // Colete Azul
-                ctx.fillRect(-12, -15, 24, 15);
-                
-                // Cabeça Cogumelo
-                ctx.fillStyle = '#fff';
-                ctx.beginPath(); ctx.ellipse(0, -30, 30, 22, 0, 0, Math.PI*2); ctx.fill();
-                
-                // Pintas Vermelhas (Costas e Lados)
-                ctx.fillStyle = '#e74c3c';
-                ctx.beginPath(); ctx.ellipse(0, -30, 10, 10, 0, 0, Math.PI*2); ctx.fill(); // Centro
-                ctx.beginPath(); ctx.ellipse(-22, -25, 6, 12, 0, 0, Math.PI*2); ctx.fill(); // Esquerda
-                ctx.beginPath(); ctx.ellipse(22, -25, 6, 12, 0, 0, Math.PI*2); ctx.fill(); // Direita
+                ctx.fillStyle = '#e67e22'; ctx.beginPath(); ctx.ellipse(0, -65, 15, 10, 0, 0, Math.PI*2); ctx.fill();
+                // Chifres saindo pros lados
+                ctx.fillStyle = '#ecf0f1'; 
+                ctx.beginPath(); ctx.moveTo(-10, -55); ctx.lineTo(-25, -70); ctx.lineTo(0, -60); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(10, -55); ctx.lineTo(25, -70); ctx.lineTo(0, -60); ctx.fill();
                 ctx.restore();
             }
             else if (n === 'YOSHI') {
-                // Kart: OVO VERDE/BRANCO
-                drawWheels(18, 28);
+                // Kart: CARRO-OVO
+                drawWheels(18, 28, '#27ae60'); // Pneus com jantes verdes
                 
-                ctx.fillStyle = '#ecf0f1'; // Base Branca
-                ctx.beginPath(); ctx.ellipse(0, 0, 25, 35, 0, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#2ecc71'; // Pintas Verdes no Kart
-                ctx.beginPath(); ctx.arc(-10, 15, 8, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.arc(15, -5, 6, 0, Math.PI*2); ctx.fill();
+                // Base Ovo Branca
+                ctx.fillStyle = '#ecf0f1'; 
+                ctx.beginPath(); ctx.ellipse(0, 0, 28, 40, 0, 0, Math.PI*2); ctx.fill();
+                
+                // Pintas Verdes Clássicas do Ovo
+                ctx.fillStyle = '#2ecc71'; 
+                ctx.beginPath(); ctx.arc(-15, 10, 10, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(15, -15, 8, 0, Math.PI*2); ctx.fill();
 
-                // Personagem Yoshi (Costas Verdes e Sela Vermelha)
+                // Personagem Yoshi
                 ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
-                ctx.fillStyle = '#76ff03'; // Corpo
-                ctx.beginPath(); ctx.ellipse(0, -15, 18, 25, 0, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#76ff03'; // Costas verdes
+                ctx.beginPath(); ctx.ellipse(0, -20, 20, 30, 0, 0, Math.PI*2); ctx.fill();
                 
-                // Sela Vermelha
-                ctx.fillStyle = '#e74c3c';
-                ctx.beginPath(); ctx.ellipse(0, -5, 12, 8, 0, 0, Math.PI*2); ctx.fill();
+                // Sela Vermelha pequena
+                ctx.fillStyle = '#e74c3c'; ctx.beginPath(); ctx.ellipse(0, -10, 14, 10, 0, 0, Math.PI*2); ctx.fill();
                 
-                // Espinhos vermelhos na cabeça/nuca
+                // Escamas Vermelhas na nuca/cabeça
                 ctx.fillStyle = '#e74c3c';
-                ctx.beginPath(); ctx.moveTo(-5, -40); ctx.lineTo(0, -50); ctx.lineTo(5, -40); ctx.fill();
-                ctx.beginPath(); ctx.moveTo(-4, -30); ctx.lineTo(0, -38); ctx.lineTo(4, -30); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-6, -45); ctx.lineTo(0, -55); ctx.lineTo(6, -45); ctx.fill();
+                ctx.beginPath(); ctx.moveTo(-5, -30); ctx.lineTo(0, -40); ctx.lineTo(5, -30); ctx.fill();
+                ctx.restore();
+            }
+            else if (n === 'PEACH') {
+                // Kart: CARRUAGEM REAL ROSA E OURO
+                drawWheels(16, 26, '#ecf0f1'); // Rodas brancas finas
+                
+                // Chassi Carruagem
+                ctx.fillStyle = '#ff9ff3'; 
+                ctx.beginPath(); ctx.moveTo(-25, -20); ctx.lineTo(25, -20); ctx.lineTo(35, 15); ctx.lineTo(-35, 15); ctx.fill();
+                ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 5; ctx.stroke(); // Ouro
+                
+                // Corações vermelhos atrás (Luzes de freio)
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath(); ctx.arc(-20, 10, 5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(20, 10, 5, 0, Math.PI*2); ctx.fill();
+
+                // Personagem Peach
+                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
+                ctx.fillStyle = '#ff9ff3'; // Vestido descendo pelas costas
+                ctx.beginPath(); ctx.ellipse(0, -15, 22, 25, 0, 0, Math.PI*2); ctx.fill();
+                
+                // Cabelo Loiro Longo
+                ctx.fillStyle = '#f1c40f'; 
+                ctx.beginPath(); ctx.moveTo(-18, -45); ctx.lineTo(18, -45); ctx.lineTo(22, -10); ctx.lineTo(-22, -10); ctx.fill();
+                
+                // Coroa com Joias no topo
+                ctx.fillStyle = '#f39c12';
+                ctx.beginPath(); ctx.moveTo(-12, -45); ctx.lineTo(-18, -60); ctx.lineTo(-5, -50); ctx.lineTo(0, -65); ctx.lineTo(5, -50); ctx.lineTo(18, -60); ctx.lineTo(12, -45); ctx.fill();
+                ctx.fillStyle = '#3498db'; ctx.beginPath(); ctx.arc(0, -55, 3, 0, Math.PI*2); ctx.fill(); // Safira
                 ctx.restore();
             }
             else if (n === 'WARIO') {
-                // Kart: MOTO/BRUTE LARGO (Roxo e Amarelo)
-                drawWheels(26, 32);
+                // Kart: CHOPPER LARGA (Mota de Ouro e Roxo)
+                drawWheels(26, 32); 
                 
-                // Escapamento exagerado
-                ctx.fillStyle = '#bdc3c7';
-                ctx.fillRect(-35, 10, 10, 25); ctx.fillRect(25, 10, 10, 25);
+                // Escapamentos Exagerados
+                ctx.fillStyle = '#bdc3c7'; ctx.fillRect(-35, 5, 12, 35); ctx.fillRect(23, 5, 12, 35);
                 
-                // Chassi Largo Roxo
-                ctx.fillStyle = '#8e44ad';
-                ctx.beginPath(); ctx.moveTo(-40, -20); ctx.lineTo(40, -20); ctx.lineTo(45, 15); ctx.lineTo(-45, 15); ctx.fill();
-                
-                // Personagem Wario (Costas Largas)
-                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
-                ctx.fillStyle = '#f1c40f'; // Camisa amarela
-                ctx.beginPath(); ctx.ellipse(0, -15, 28, 22, 0, 0, Math.PI*2); ctx.fill();
-                
-                ctx.fillStyle = '#8e44ad'; // Macacão Roxo
-                ctx.fillRect(-18, -25, 8, 25); ctx.fillRect(10, -25, 8, 25); // Alças
-                ctx.fillRect(-22, -5, 44, 15); // Cintura
+                // Chassi Roxo
+                ctx.fillStyle = '#8e44ad'; 
+                ctx.beginPath(); ctx.moveTo(-40, -15); ctx.lineTo(40, -15); ctx.lineTo(45, 20); ctx.lineTo(-45, 20); ctx.fill();
 
-                // Chapéu Amarelo
-                ctx.fillStyle = '#f1c40f'; 
-                ctx.beginPath(); ctx.ellipse(0, -38, 18, 15, 0, 0, Math.PI*2); ctx.fill();
-                ctx.beginPath(); ctx.ellipse(0, -33, 24, 6, 0, 0, Math.PI*2); ctx.fill();
+                // Personagem Wario
+                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
+                ctx.fillStyle = '#f1c40f'; // Camisa Amarela gorda
+                ctx.beginPath(); ctx.ellipse(0, -15, 32, 25, 0, 0, Math.PI*2); ctx.fill();
+                
+                // Alças do macacão roxo
+                ctx.fillStyle = '#8e44ad'; ctx.fillRect(-22, -25, 8, 25); ctx.fillRect(14, -25, 8, 25);
+                
+                // Bigode Zig-Zag visível de trás!
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+                ctx.beginPath(); ctx.moveTo(-25, -35); ctx.lineTo(-35, -32); ctx.lineTo(-40, -38); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(25, -35); ctx.lineTo(35, -32); ctx.lineTo(40, -38); ctx.stroke();
+
+                // Chapéu Amarelo Largo
+                ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.ellipse(0, -42, 20, 15, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(0, -37, 28, 6, 0, 0, Math.PI*2); ctx.fill();
+                ctx.restore();
+            }
+            else if (n === 'TOAD') {
+                // Kart: CARRO COGUMELO PEQUENO
+                drawWheels(14, 22);
+                
+                // Chassi Cogumelo
+                ctx.fillStyle = '#3498db'; // Base Azul
+                ctx.beginPath(); ctx.ellipse(0, 10, 25, 15, 0, 0, Math.PI*2); ctx.fill();
+                
+                // Personagem Toad
+                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
+                ctx.fillStyle = '#3498db'; // Colete nas costas
+                ctx.fillRect(-12, -15, 24, 15);
+                
+                // Cabeça de Cogumelo Gigante Branca
+                ctx.fillStyle = '#fff';
+                ctx.beginPath(); ctx.ellipse(0, -35, 32, 22, 0, 0, Math.PI*2); ctx.fill();
+                
+                // Pintas Vermelhas do Cogumelo
+                ctx.fillStyle = '#e74c3c';
+                ctx.beginPath(); ctx.ellipse(0, -40, 12, 8, 0, 0, Math.PI*2); ctx.fill(); // Topo
+                ctx.beginPath(); ctx.ellipse(-22, -30, 8, 12, 0, 0, Math.PI*2); ctx.fill(); // Esquerda
+                ctx.beginPath(); ctx.ellipse(22, -30, 8, 12, 0, 0, Math.PI*2); ctx.fill(); // Direita
                 ctx.restore();
             }
             else {
-                // Fallback Genérico (Para mods futuros)
+                // MARIO E LUIGI (PIPE FRAME CLÁSSICO)
                 drawWheels(20, 30);
-                const gradBody = ctx.createLinearGradient(-30, 0, 30, 0); 
-                gradBody.addColorStop(0, color); gradBody.addColorStop(0.5, '#fff'); gradBody.addColorStop(1, color);
-                ctx.fillStyle = gradBody; 
-                ctx.beginPath(); ctx.moveTo(-25, -30); ctx.lineTo(25, -30); ctx.lineTo(40, 10); ctx.lineTo(10, 35); ctx.lineTo(-10, 35); ctx.lineTo(-40, 10); ctx.fill();
+                
+                // Caixa do Motor Cinza
+                ctx.fillStyle = '#95a5a6'; ctx.fillRect(-15, 15, 30, 18);
+                // Tubos do Kart
+                ctx.strokeStyle = stats.color; ctx.lineWidth = 6; ctx.lineCap = 'round';
+                ctx.beginPath(); ctx.moveTo(-25, -20); ctx.lineTo(25, -20); ctx.lineTo(35, 10); ctx.lineTo(-35, 10); ctx.closePath(); ctx.stroke();
 
-                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3); 
-                ctx.fillStyle = '#ffccaa'; ctx.beginPath(); ctx.arc(0, -20, 18, 0, Math.PI*2); ctx.fill(); 
-                ctx.fillStyle = stats.hat; ctx.beginPath(); ctx.arc(0, -25, 18, Math.PI, 0); ctx.fill(); ctx.beginPath(); ctx.ellipse(0, -25, 22, 5, 0, Math.PI, 0); ctx.fill();
-                ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0, -32, 6, 0, Math.PI*2); ctx.fill();
-                ctx.fillStyle = '#000'; ctx.font='bold 8px Arial'; ctx.textAlign='center'; ctx.fillText(stats.name[0], 0, -30);
-                ctx.restore(); 
+                // Personagem
+                ctx.save(); ctx.translate(0, -10); ctx.rotate(steer * 0.3);
+                ctx.fillStyle = stats.color; // Camisa
+                ctx.beginPath(); ctx.ellipse(0, -15, 18, 20, 0, 0, Math.PI*2); ctx.fill();
+                
+                // Alças Azuis Escuras e Cinto
+                ctx.fillStyle = '#2980b9'; 
+                ctx.fillRect(-12, -25, 6, 25); ctx.fillRect(6, -25, 6, 25);
+                ctx.fillRect(-15, -5, 30, 10);
+
+                // Chapéu icónico
+                ctx.fillStyle = stats.hat; 
+                ctx.beginPath(); ctx.ellipse(0, -35, 18, 15, 0, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.ellipse(0, -30, 22, 6, 0, 0, Math.PI*2); ctx.fill(); // Aba de trás
+                
+                // Logo nas Costas (M ou L)
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center'; ctx.fillText(n[0], 0, -10);
+                ctx.restore();
             }
 
             ctx.restore(); 
